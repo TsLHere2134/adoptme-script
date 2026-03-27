@@ -105,9 +105,9 @@ getgenv().Config = {
 
     Settings = {
         AutoShowUI = true,
-        ShowOverlay = false,
+        ShowOverlay = true,
         ReduceGraphics = true,
-        FPSCap = 3,
+        FPSCap = 2,
         LureId = "ice_dimension_2025_ice_soup_bait"
     },
 
